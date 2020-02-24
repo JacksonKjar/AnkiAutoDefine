@@ -65,7 +65,6 @@ def theMagic(flag, n, fidx):
         remHook('editFocusLost', theMagic)
         runHook('editFocusLost',flag,n,fidx)
         addHook('editFocusLost', theMagic)
-        return flag
         
     # conditions to confirm functionality should be run
     if n.model()['name'] == "Japanese (recognition)": 
