@@ -17,7 +17,10 @@ class dictionaryEntry:
 
     @classmethod
     def fromEntryPage(cls, name, dataHTML):
-        return cls(name, re.search(r'"og:title" content="(.+?)の意味',dataHTML,re.DOTALL).group(1), re.search(r'"description" content=".+?類語。(.+?)- goo国語',dataHTML,re.DOTALL).group(1), "")
+        return cls(name,
+            re.search(r'"og:title" content="(.+?)の意味',dataHTML,re.DOTALL).group(1),
+            re.search(r'"description" content=".+?類語。(.+?)- goo国語',dataHTML,re.DOTALL).group(1),
+            "")
 
     def __init__(self, name, word, shortDef, url):
         while("<img" in shortDef):
@@ -32,13 +35,20 @@ class dictionaryEntry:
     def failedSearchEntry(cls):
         return cls("失敗","","goo辞書で一致する情報は見つかりませんでした","")
 
+    @classmethod
+    def connectionErrorEntry(cls):
+        return cls("失敗","","goo辞書に接続出来ませんでした","")
+
     # returns an expanded version of the definition
     def getFullDef(self):
         if self.url == "" or self.shortDef[-3:] != "...":
             return self.shortDef
         else:
-            entryPage = requests.get(self.url).text
-            return re.search(r'personal_snippet" content="(.+?)>',entryPage).group(1)
+            try:
+                entryPage = requests.get(self.url).text
+                return re.search(r'personal_snippet" content="(.+?)>',entryPage).group(1)
+            except requests.exceptions.ConnectionError:
+                return self.shortDef
 
     def __str__(self):
         return self.word+ ": " + self.shortDef
@@ -67,7 +77,8 @@ def theMagic(flag, n, fidx):
                 aw = None
                 for window in mw.app.topLevelWidgets():
                     # finds the window being edited in
-                    if((isinstance(window, addcards.AddCards) or isinstance(window, browser.Browser)) and window.editor.note is n):
+                    if((isinstance(window, addcards.AddCards) or isinstance(window, browser.Browser))
+                        and window.editor.note is n):
                         aw = window
                         break
 
@@ -93,9 +104,9 @@ def theMagic(flag, n, fidx):
                             grid.addWidget(label,x,1,1,5)
                         d.setLayout(grid)
                         d.exec_()
-                    output = ""
 
                     # puts the output into the note and saves
+                    output = ""
                     for entry in finalEntries:
                         output += "<div><b>"+entry.name+":</b> " + entry.getFullDef() + "</div>"
                     n[dst] = output
@@ -132,10 +143,14 @@ def parseSearch(word):
         searchPage = getSearchPage(word)
     except ValueError:
         return [dictionaryEntry.failedSearchEntry()]
+    except requests.exceptions.ConnectionError:
+        return [dictionaryEntry.connectionErrorEntry()]
+
     try:
         resultsString = re.search(r'<ul class="content_list idiom lsize">(.+?)</div>', searchPage, re.DOTALL).group(1)
     except AttributeError:
         return [dictionaryEntry.fromEntryPage(word, searchPage)]
+
     entries = []
     for result in re.findall(r'<a href=.+?</a>', resultsString,re.DOTALL):
         entries.append(dictionaryEntry.fromSearchPage(word, result))
