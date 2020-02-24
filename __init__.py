@@ -1,8 +1,7 @@
-import sys
 from aqt.qt import *
 import requests
 import re
-from anki.hooks import addHook
+from anki.hooks import addHook, remHook, runHook
 from aqt import mw, addcards, editor, browser
 from functools import partial
 
@@ -48,7 +47,16 @@ class dictionaryEntry:
 finalEntries = []
 
 def theMagic(flag, n, fidx):
-    global finalEntries
+    global finalEntries, first
+
+    #because my add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
+    if first:
+        first = False
+        remHook('editFocusLost', theMagic)
+        runHook('editFocusLost',flag,n,fidx)
+        addHook('editFocusLost', theMagic)
+        return flag
+        
     # conditions to confirm functionality should be run
     if n.model()['name'] == "Japanese (recognition)": 
         fields = mw.col.models.fieldNames(n.model())
@@ -142,4 +150,5 @@ def urlEncode(word):
     return finalized
 
 # tells anki to call theMagic when focus is lost (you move out of a text field or something)
+first = True
 addHook('editFocusLost', theMagic)
