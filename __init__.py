@@ -59,13 +59,6 @@ finalEntries = []
 def theMagic(flag, n, fidx):
     global finalEntries, first
 
-    #because my add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
-    if first:
-        first = False
-        remHook('editFocusLost', theMagic)
-        runHook('editFocusLost',flag,n,fidx)
-        addHook('editFocusLost', theMagic)
-        
     # conditions to confirm functionality should be run
     if n.model()['name'] == "Japanese (recognition)": 
         fields = mw.col.models.fieldNames(n.model())
@@ -80,8 +73,13 @@ def theMagic(flag, n, fidx):
                         and window.editor.note is n):
                         aw = window
                         break
-
                 if aw != None:
+                    # because my add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
+                    if first:
+                        first = False
+                        remHook('editFocusLost', theMagic)
+                        runHook('editFocusLost',flag,n,fidx)
+                        addHook('editFocusLost', theMagic)
                     boldWords = getBoldWords(n[src])
                     # runs the dialogs
                     for word in boldWords:
