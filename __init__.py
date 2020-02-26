@@ -5,6 +5,11 @@ from anki.hooks import addHook, remHook, runHook
 from aqt import mw, addcards, editor, browser
 from functools import partial
 
+# stores the entries that need to be added when dialogs end
+finalEntries = []
+first = True
+config = mw.addonManager.getConfig(__name__)
+
 # dictionary entry object to organize the word and definitions.
 class dictionaryEntry:
 
@@ -53,66 +58,69 @@ class dictionaryEntry:
     def __str__(self):
         return self.word+ ": " + self.shortDef
 
-# stores the entries that need to be added when dialogs end
-finalEntries = []
 
 def theMagic(flag, n, fidx):
-    global finalEntries, first
+    global finalEntries, first, config
+    fields = mw.col.models.fieldNames(n.model())
+    for notetype in config["notetypes"]:
+        if n.model()['name'] == notetype["name"]:
+            if fields[fidx] == notetype["src"]:
+                src = fields[fidx]
+                dst = notetype["dst"]
+                try:
+                    n[dst] == n[src]
+                except:
+                    raise ValueError("The dst and src fields in config don't match those on the card")
+                # conditions to confirm functionality should be run
+                if n[dst] == "" and n[src] != "":
+                    aw = None
+                    for window in mw.app.topLevelWidgets():
+                        # finds the window being edited in
+                        if((isinstance(window, addcards.AddCards) or isinstance(window, browser.Browser))
+                            and window.editor.note is n):
+                            aw = window
+                            break
+                    if aw != None:
+                        # because my add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
+                        if first:
+                            first = False
+                            remHook('editFocusLost', theMagic)
+                            runHook('editFocusLost',flag,n,fidx)
+                            addHook('editFocusLost', theMagic)
+                        boldWords = getBoldWords(n[src])
+                        # runs the dialogs
+                        for word in boldWords:
+                            entries = parseSearch(word)
+                            if(len(entries) < 2):
+                                finalEntries.append(entries[0])
+                                continue
+                            d = QDialog(aw)
+                            grid = QGridLayout()
 
-    # conditions to confirm functionality should be run
-    if n.model()['name'] == "Japanese (recognition)" or "MIA Japanese": 
-        fields = mw.col.models.fieldNames(n.model())
-        if fields[fidx] == "Expression":
-            src = fields[fidx]
-            dst = "Meaning"
-            if n[dst] == "" and n[src] != "":
-                aw = None
-                for window in mw.app.topLevelWidgets():
-                    # finds the window being edited in
-                    if((isinstance(window, addcards.AddCards) or isinstance(window, browser.Browser))
-                        and window.editor.note is n):
-                        aw = window
-                        break
-                if aw != None:
-                    # because my add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
-                    if first:
-                        first = False
-                        remHook('editFocusLost', theMagic)
-                        runHook('editFocusLost',flag,n,fidx)
-                        addHook('editFocusLost', theMagic)
-                    boldWords = getBoldWords(n[src])
-                    # runs the dialogs
-                    for word in boldWords:
-                        entries = parseSearch(word)
-                        if(len(entries) < 2):
-                            finalEntries.append(entries[0])
-                            continue
-                        d = QDialog(aw)
-                        grid = QGridLayout()
+                            # adds found definitions to dialog window
+                            for x in range(len(entries)):
+                                button = QPushButton(entries[x].word)
+                                button.clicked.connect(partial(buttonPressed, entries[x],d))
+                                label = QLabel()
+                                label.setText(entries[x].shortDef)
+                                label.setWordWrap(True)
+                                grid.addWidget(button,x,0)
+                                grid.addWidget(label,x,1,1,5)
+                            d.setLayout(grid)
+                            d.exec_()
 
-                        # adds found definitions to dialog window
-                        for x in range(len(entries)):
-                            button = QPushButton(entries[x].word)
-                            button.clicked.connect(partial(buttonPressed, entries[x],d))
-                            label = QLabel()
-                            label.setText(entries[x].shortDef)
-                            label.setWordWrap(True)
-                            grid.addWidget(button,x,0)
-                            grid.addWidget(label,x,1,1,5)
-                        d.setLayout(grid)
-                        d.exec_()
+                        # puts the output into the note and saves
+                        output = ""
+                        for entry in finalEntries:
+                            output += "<div><b>"+entry.name+":</b> " + entry.getFullDef() + "</div>"
+                        n[dst] = output
+                        n.flush()
+                        aw.editor.loadNote(focusTo=fidx+1)
+                        finalEntries = []
 
-                    # puts the output into the note and saves
-                    output = ""
-                    for entry in finalEntries:
-                        output += "<div><b>"+entry.name+":</b> " + entry.getFullDef() + "</div>"
-                    n[dst] = output
-                    n.flush()
-                    aw.editor.loadNote(focusTo=fidx+1)
-                    finalEntries = []
-
-                    # prevents focus from advancing and messing the edits up
-                    return False
+                        # prevents focus from advancing and messing the edits up
+                        return False
+            break
     return flag
 
 # adds the selected dictionary entry and closes dialog
@@ -162,5 +170,4 @@ def urlEncode(word):
     return finalized
 
 # tells anki to call theMagic when focus is lost (you move out of a text field or something)
-first = True
 addHook('editFocusLost', theMagic)
