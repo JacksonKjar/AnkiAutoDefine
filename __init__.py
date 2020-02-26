@@ -60,7 +60,7 @@ def theMagic(flag, n, fidx):
     global finalEntries, first
 
     # conditions to confirm functionality should be run
-    if n.model()['name'] == "Japanese (recognition)": 
+    if n.model()['name'] == "Japanese (recognition)" or "MIA Japanese": 
         fields = mw.col.models.fieldNames(n.model())
         if fields[fidx] == "Expression":
             src = fields[fidx]
