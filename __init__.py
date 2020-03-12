@@ -2,7 +2,7 @@ from aqt.qt import *
 import requests
 import re
 from anki.hooks import addHook, remHook, runHook
-from aqt import mw, addcards, editor, browser
+from aqt import mw, editor
 from functools import partial
 
 # stores the entries that need to be added when dialogs end
@@ -37,8 +37,8 @@ class dictionaryEntry:
         self.word = word
     
     @classmethod
-    def failedSearchEntry(cls):
-        return cls("失敗","","goo辞書で一致する情報は見つかりませんでした","")
+    def failedSearchEntry(cls, word):
+        return cls("失敗","","goo辞書で「" + word + "」に一致する情報は見つかりませんでした","")
 
     @classmethod
     def connectionErrorEntry(cls):
@@ -74,11 +74,10 @@ def theMagic(flag, n, fidx):
                 # conditions to confirm functionality should be run
                 if n[dst] == "" and n[src] != "":
                     aw = None
-                    for window in mw.app.topLevelWidgets():
-                        # finds the window being edited in
-                        if((isinstance(window, addcards.AddCards) or isinstance(window, browser.Browser))
-                            and window.editor.note is n):
-                            aw = window
+                    for widget in mw.app.allWidgets():
+                        # finds the editor in use
+                        if isinstance(widget, editor.EditorWebView) and widget.editor.note is n:
+                            aw = widget
                             break
                     if aw != None:
                         # because my add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
@@ -147,7 +146,7 @@ def parseSearch(word):
     try:
         searchPage = getSearchPage(word)
     except ValueError:
-        return [dictionaryEntry.failedSearchEntry()]
+        return [dictionaryEntry.failedSearchEntry(word)]
     except requests.exceptions.ConnectionError:
         return [dictionaryEntry.connectionErrorEntry()]
 
