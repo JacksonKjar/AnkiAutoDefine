@@ -29,17 +29,17 @@ class dictionaryEntry:
 
     def __init__(self, name, word, shortDef, url):
         self.name = name
-        self.shortDef = re.sub(r'<img.+?>',"",shortDef)
+        self.shortDef = re.sub(r'<img.+?>|&#x32..;',"",shortDef)
         self.url = url
         self.word = word
     
     @classmethod
     def failedSearchEntry(cls, word):
-        return cls("失敗","","goo辞書で「" + word + "」に一致する情報は見つかりませんでした","")
+        return cls("失敗","失敗","goo辞書で「" + word + "」に一致する情報は見つかりませんでした","")
 
     @classmethod
     def connectionErrorEntry(cls):
-        return cls("失敗","","goo辞書に接続出来ませんでした","")
+        return cls("失敗","失敗","goo辞書に接続出来ませんでした","")
 
     # returns an expanded version of the definition
     def getFullDef(self):
@@ -58,7 +58,7 @@ class dictionaryEntry:
         return self.word+ ": " + self.shortDef
 
 def cleanDefinition(dirty):
-    dirtyLines = re.findall(r'<p class="text">(.+?)</p>',dirty,re.DOTALL)
+    dirtyLines = re.findall(r'<p class="text">.+?</p>|<div class="text">.+?</div>',dirty,re.DOTALL)
     answer = ""
     for line in dirtyLines:
         answer += re.sub(r'<.*?>|&thinsp;|&#x32..;',"",line) + "\n"
