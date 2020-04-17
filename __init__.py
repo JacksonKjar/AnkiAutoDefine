@@ -128,7 +128,7 @@ def theMagic(flag, n, fidx):
                             aw = widget
                             break
                     if aw != None:
-                        # because my add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
+                        # because this add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
                         if first:
                             first = False
                             remHook('editFocusLost', theMagic)
