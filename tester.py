@@ -103,5 +103,6 @@ def urlEncode(word):
         finalized = finalized + "%" + codedWord[i:i+2]
     return "https://dictionary.goo.ne.jp/srch/jn/" + finalized + "/m1u/"
 
-for word in parseSearch("制御"):
+for word in parseSearch("譚"):
     print(word)
+    print("misakisenpai" + word.url)
