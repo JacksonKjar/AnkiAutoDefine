@@ -1,3 +1,5 @@
+# File used to test the actual getting of definitions without worrying about the anki stuff
+
 import requests
 import re
 from functools import partial
@@ -103,6 +105,6 @@ def urlEncode(word):
         finalized = finalized + "%" + codedWord[i:i+2]
     return "https://dictionary.goo.ne.jp/srch/jn/" + finalized + "/m1u/"
 
-for word in parseSearch("譚"):
+for word in parseSearch("癇"):
     print(word)
-    print("misakisenpai" + word.url)
+    print("chevron" in word.getFullDef())

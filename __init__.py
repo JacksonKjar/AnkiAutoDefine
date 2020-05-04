@@ -1,8 +1,9 @@
-from aqt.qt import *
+from aqt import mw, editor
+from aqt.qt import QDialog, QGridLayout, QPushButton, QLabel
+from anki.hooks import addHook, remHook, runHook
+
 import requests
 import re
-from anki.hooks import addHook, remHook, runHook
-from aqt import mw, editor
 from functools import partial
 
 # stores the entries that need to be added when dialogs end
