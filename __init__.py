@@ -101,7 +101,10 @@ def theMagic(flag, n, fidx):
     for entry in finalEntries:
         output += "<div><b>"+entry.word+":</b> " + entry.getFullDef() + "</div>"
     n[dst] = output
-    n.to_backend_note()
+    try:
+        n.to_backend_note()
+    except AttributeError:
+        n.flush()
     aw.editor.loadNote(focusTo=fidx+1)
     finalEntries = []
 
