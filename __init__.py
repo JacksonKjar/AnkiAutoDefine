@@ -1,15 +1,14 @@
-from aqt import mw, editor
-from aqt.qt import QDialog, QGridLayout, QPushButton, QLabel
-from anki.hooks import addHook, remHook, runHook
-
 from functools import partial
 import re
+
+import anki
+from aqt import mw, editor, gui_hooks
+from aqt.qt import QDialog, QGridLayout, QPushButton, QLabel
 
 from . import definitionGetter
 
 # stores the entries that need to be added when dialogs end
 finalEntries = []
-first = True
 config = mw.addonManager.getConfig(__name__)
 
 # adds the selected dictionary entry and closes dialog
@@ -27,13 +26,6 @@ def getNoteType(name):
         if(name == notetype['name']): 
             return notetype
     return None
-
-def correctOrder(flag, n, fidx):
-    global first
-    first = False
-    remHook('editFocusLost', theMagic)
-    runHook('editFocusLost',flag,n,fidx)
-    addHook('editFocusLost', theMagic)
 
 def getActiveWindow(note):
     for widget in mw.app.allWidgets():
@@ -58,36 +50,32 @@ def getDefinitionChoiceDialog(aw, entries):
     d.setLayout(grid)
     return d
 
-def theMagic(flag, n, fidx):
-    global finalEntries, first, config
-    fields = mw.col.models.fieldNames(n.model())
-    notetype = getNoteType(n.model()['name'])
+def theMagic(changed: bool, note: anki.notes.Note, current_field_idx: int):
+    global finalEntries, config
+    fields = mw.col.models.field_names(note.note_type())
+    notetype = getNoteType(note.note_type()['name'])
     if not notetype:
         # not a notetype that has the add-on enabled, don't do anything
-        return flag
+        return changed
 
-    if fields[fidx] != notetype["src"]:
+    if fields[current_field_idx] != notetype["src"]:
         # not the src field that has been edited, don't do anything
-        return flag
-    src = fields[fidx]
+        return changed
+    src = fields[current_field_idx]
     dst = notetype["dst"]
 
     if not dst:
         raise ValueError("The dst and src fields in config don't match those on the card")
     
-    if n[dst]:
+    if note[dst]:
         # dst isn't empty, to avoid overwriting data, don't do anything
-        return flag
+        return changed
 
-    aw = getActiveWindow(n)
+    aw = getActiveWindow(note)
     if not aw:
-        return flag
+        return changed
     
-    # because this add-on loads first and it reacts with the reading generator strangely, gotta put it in the back
-    if first:
-        correctOrder(flag, n, fidx)
-    
-    boldWords = getBoldWords(n[src])
+    boldWords = getBoldWords(note[src])
     # runs the dialogs
     for word in boldWords:
         entries = definitionGetter.parseSearch(word)
@@ -100,16 +88,16 @@ def theMagic(flag, n, fidx):
     output = ""
     for entry in finalEntries:
         output += "<div><b>"+entry.word+":</b> " + entry.getFullDef() + "</div>"
-    n[dst] = output
+    note[dst] = output
     try:
-        n.to_backend_note()
+        note._to_backend_note()
     except AttributeError:
-        n.flush()
-    aw.editor.loadNote(focusTo=fidx+1)
+        note.flush()
+    aw.editor.loadNote(focusTo=current_field_idx+1)
     finalEntries = []
 
     # prevents focus from advancing and messing the edits up
     return False
 
 # tells anki to call theMagic when focus is lost (you move out of a text field or something)
-addHook('editFocusLost', theMagic)
+gui_hooks.editor_did_unfocus_field.append(theMagic)
